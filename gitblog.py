@@ -1,6 +1,6 @@
 #!/usr/lib/apache2/modules/mod_python.so
 # -*- coding: utf-8 -*-
-# <htdocs root>/gitblog.py
+# gitblog.py
 """
 This Python program gitblog.py handles HTTP requests when it is loaded by mod_python and
 returns different types of output formats from a git repository as web site basis.
@@ -232,9 +232,7 @@ def handler(req):
     # Replace lists placeholders
     content = re.sub('(?ms)(^\*\s+.*?<br />)\n^<br />\n', r'<ul>\n\1\n</ul>\n', content)
     content = re.sub('(?ms)(^#\s+.*?<br />)\n^<br />\n', r'<ol>\n\1\n</ol>\n', content)
-    # TODO: Fix multiline
-    #content = re.sub('(?m)^[\*#]\s+(.*)<br />?', r'<li>\1</li>', content)
-    content = re.sub(r'(?m)^[\*#]\s+(.*)(?=<br />\n([\*#]|</ul>|</ol>))<br />', r'<li>\1</li>', content)
+    content = re.sub('(?ms)^[\*#]\s+(.*?(?=\n[\*#]\s|</ul>|</ol>))', r'<li>\1</li>', content)
 
     # Headings
     content = re.sub('(?m)^h([1-6])\.\s+(.*)<br />', r'<h\1>\2</h\1>', content)
