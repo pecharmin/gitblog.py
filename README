@@ -1,0 +1,44 @@
+gitblob.py
+==========
+Delivers Git-based websites via apache2/mod_python
+
+Author: Armin Pech <github (at) arminpech (dot) de>
+
+Description
+===========
+
+Setup with Apache2
+==================
+* Install mod_python for Apache2 webserver
+* Setup a local Git repository on your desktop and create a directory structure
+* Create a VHost in your webserver configuration
+<VirtualHost *:80>
+	# VHost information
+	ServerName arminpech.local
+	ServerAdmin hostmaster@arminpech.de
+
+	DocumentRoot /dev/null
+
+	# Define logging
+	LogLevel warn
+	ErrorLog /var/log/apache2/error_log-%{SERVER_NAME}
+	CustomLog /var/log/apache2/access_log-%{SERVER_NAME} vhost
+
+	# Secure access to the filesystem
+	<Directory />
+		Order allow,deny
+		Deny from all
+	</Directory>
+
+	# Deliver content from git repo by mod_python
+	SetHandler mod_python
+	PythonOptimize On
+	PythonAutoReload Off
+	PythonDebug Off
+	PythonHandlerModule /usr/local/bin/gitblog.py.git/gitblog.py
+	PythonOption gitblog.wwwroot /var/git/arminpech.de.git/
+	PythonOption gitblog.report_errors True
+
+	# Compress output by filter
+	SetOutputFilter DEFLATE
+</VirtualHost>
