@@ -1,13 +1,12 @@
-#!/usr/lib/apache2/modules/mod_python.so
 # -*- coding: utf-8 -*-
 # gitblog.py
 """
 This Python program gitblog.py handles HTTP requests when it is loaded by mod_python and
 returns different types of output formats from a git repository as web site basis.
 The program can be used to deliver multiple sites/sources. The repository source is
-set by the Apache option "PythonOption gitblog.wwwroot <path to git repo>".
+set by the Apache option "PythonOption gitblog.www_repo <path to git repo>".
 
-Copyright (c) 2013 Armin Pech <gitblog.py (at) arminpech (dot) de>, Duesseldorf, Germany.
+Copyright (c) 2013, 2014 Armin Pech <gitblog.py (at) arminpech (dot) de>, Duesseldorf, Germany.
 
 Request for different output formats:
 /about/me -- Default output is HTML
@@ -16,7 +15,9 @@ Request for different output formats:
 
 Request content in a particular version:
 /about/me -- Default version is HEAD
-/about/blogroll?version=<commit> -- Return content in specific version
+/about/blogroll?ref=<git_ref> -- Return content in specific version
+
+# TODO: Versions
 
 Request unified diff for a content:
 /about/me?diff=<commit>[:HEAD] -- Return diff of a resource between commit and HEAD
@@ -24,12 +25,8 @@ Request unified diff for a content:
 
 
 Available PyhtonOption configurations:
-gitblog.wwwroot             Base git repository to deliver content from
-gitblog.default_output_type Default output type/template format
+gitblog.www_repo             Base git repository to deliver content from
 
-
-Changelog
-14.09.2013: Basic idea and concept
 
 TODO
 * return 404er if commit not found
@@ -41,27 +38,29 @@ TODO
 ### Import required modules
 # Handle HTTP requests via mod_python
 from mod_python import apache
+# Read python error
+import sys
+# Regular Expression manipulation of contents with placeholders
+import re
 # Read content from git repository
 import git
 # Date formatting
 from datetime import datetime
-# Templating module
-from string import Template
-# Regular Expression manipulation of contents with placeholders
-import re
-# Read python error
-import sys
+# Output formatting
+from markdown2 import markdown
+from BeautifulSoup import BeautifulSoup
 
 
 ### Set configuration options
 # Default output text encoding
 default_output_type = 'html'
 # Available output text encodings (request parameter key => output format)
-available_output_type = { 'html': 'html', 'xml': 'xml', 'ascii': 'plain', 'plain': 'plain' }
-# Pathes that should not be delivered by gitblog.py, without leeding and trailing slashes
-nondelivery_paths = [ '.git', 'gitblog.py', 'templates' ]
-# Pathes that are delivered directly by gitblog.py, without leeding and trailing slashes
-directdelivery_paths = [ 'static' ]
+available_output_type = {   'html': 'html',
+                            'ascii': 'plain',
+                            'plain': 'plain',
+                        }
+# Pathes that should not be delivered by gitblog.py, without leading and trailing slashes
+nondelivery_paths = ['.git', 'gitblog.py']
 # Default Git commit for delivery
 default_git_commit = 'HEAD'
 # Default Git diff versions for comparsion delivery
@@ -71,14 +70,17 @@ default_git_commit = 'HEAD'
 ### Handle HTTP requests
 def handler(req):
     # Set PythonOption configurations
-    config = { \
-     'gitblog.wwwroot': '/dev/null', \
-     'gitblog.default_output_type': 'html', \
-     'gitblog.report_errors': False \
+    config = {
+     'gitblog.www_repo': '/dev/null',
+     'gitblog.default_output_type': 'html',
+     'gitblog.report_errors': False,
+     # Pathes that are delivered directly by gitblog.py, without leading and trailing slashes
+     'gitblog.direct_delivery': 'static',
+     'markdown2_extras': 'toc',
     }
 
     for k in config.keys():
-        if req.get_options().has_key(k) and \
+        if k in req.get_options().keys() and \
           not req.get_options()[k] is None and \
           not req.get_options()[k] == '':
             if req.get_options()[k] == 'True':
@@ -87,6 +89,9 @@ def handler(req):
                 config[k] = False
             else:
                 config[k] = req.get_options()[k]
+
+    config['gitblog.direct_delivery'] = config['gitblog.direct_delivery'].split(',')
+    config['markdown2_extras'] = config['markdown2_extras'].split(',')
 
 
     # Get request path as list
@@ -125,15 +130,15 @@ def handler(req):
 
     # Set Git commit
     user_git_commit = default_git_commit
-    if args.has_key('commit'):
-        user_git_commit = args['commit'][0:39]
+    if 'ref' in args.keys():
+        user_git_commit = args['ref'][0:39]
 
 
     # Read data from repo
-    repo = git.Repo(req.get_options()['gitblog.wwwroot'], odbt=git.GitDB)
+    repo = git.Repo(config['gitblog.www_repo'], odbt=git.GitDB)
 
     # Delivery some ressources directly
-    for p in directdelivery_paths:
+    for p in config['gitblog.direct_delivery']:
         if '/' + p == req.uri[0:len(p)+1]:
             try:
                 req.content_type = repo.heads.master.commit.tree[req.uri[1:]].mime_type
@@ -186,9 +191,11 @@ def handler(req):
     # Read object and get content
     try:
         requested_object = git_commit.tree[requested_git_path]
+
         # read blob object's content
         if requested_object.type == 'blob':
             content = requested_object.data_stream.read()
+
         # generate directory listing for tree objects
         elif requested_object.type == 'tree':
             content = ''
@@ -201,105 +208,17 @@ def handler(req):
     except:
         return(apache.HTTP_NOT_FOUND)
 
+    # Convert content to UTF-8
+    content = content.decode("utf-8")
+    content += "\n---\nReference [%s](%s?ref=%s)" % \
+               (git_commit, req.uri, git_commit)
+    content = markdown(content, extras=config['markdown2_extras'])
 
     # Return plain content directly
     if output_type == 'plain':
         req.headers_out.add('Content-Length', str(len(content)))
         req.write(content)
         return(apache.OK)
-
-
-    # Convert content to UTF-8
-    content = content.decode("utf-8")
-
-    # Extract meta data of content
-    meta_data = re.search('^\s*title\.\s*(?P<title>[^\n]*)', content)
-    meta_data_content = { \
-     'title': ''
-    }
-    if not meta_data is None:
-        for g, r in meta_data.groupdict().iteritems():
-            meta_data_content[g] = r
-    del(meta_data)
-
-    # Remove meta data from content
-    content = re.sub('^\s*title\.\s+.*\n', '', content, 1)
-
-    # Replace newlines
-    content = re.sub('^\n*', '', content)
-    content = re.sub('\n', r'<br />\n', content)
-
-    # Replace lists placeholders
-    content = re.sub('(?ms)(^\*\s+.*?<br />)\n^<br />\n', r'<ul>\n\1\n</ul>\n', content)
-    content = re.sub('(?ms)(^#\s+.*?<br />)\n^<br />\n', r'<ol>\n\1\n</ol>\n', content)
-    content = re.sub('(?ms)^[\*#]\s+(.*?(?=\n[\*#]\s|</ul>|</ol>))', r'<li>\1</li>', content)
-
-    # Headings
-    content = re.sub('(?m)^h([1-6])\.\s+(.*)<br />', r'<h\1>\2</h\1>', content)
-
-
-    # Set response HTTP headers
-    req.content_type = 'text/' + output_type
-
-    # Return content with applied templates
-    try:
-        # TODO: handle directory listings?
-        template = repo.heads.master.commit.tree['templates/' + output_type].data_stream.read()
-        content = Template(template).safe_substitute( \
-          path=requested_object.path, \
-          title=meta_data_content['title'], \
-          body=content, \
-          charset=git_commit.encoding, \
-          commit=git_commit, \
-          author=git_commit.author, \
-          date=datetime.fromtimestamp(git_commit.committed_date)
-        )
-    except:
-        if config['gitblog.report_errors'] is True:
-            etype, evalue, etb = sys.exc_info()
-            req.write('An error occured on line %i while delivering content path /%s: %s' % \
-              (etb.tb_lineno, requested_object.path, evalue))
-            req.status = apache.HTTP_INTERNAL_SERVER_ERROR
-            return(apache.DONE)
-        return(apache.HTTP_INTERNAL_SERVER_ERROR)
-
-
-    # Replace placeholders
-    if content.find('{toc}'):
-        # TODO: insert anchors
-        content = re.sub(r'(?m)^{toc}', r'<u>Inhaltsverzeichnis | Table of contents</u><br />TODO', content, 1)
-
-    # Text decoration
-    content = re.sub(r'(?<!\\){i(?<!\\)}(.*)(?<!\\){i(?<!\\)}', r'<i>\1</i>', content)
-    content = re.sub(r'(?<!\\){b(?<!\\)}(.*)(?<!\\){b(?<!\\)}', r'<b>\1</b>', content)
-    content = re.sub(r'(?<!\\){u(?<!\\)}(.*)(?<!\\){u(?<!\\)}', r'<u>\1</u>', content)
-
-    # Code blocks
-    content = re.sub(r'(?ms)^{code[^}]*}<br />\n(.*?(?!{code}))<br />\n{code}<br />\n', r'<pre><code>\1</code></pre>', content)
-    # TODO: run over all matches
-    #content = re.sub(r'(?m)(<pre><code>.*(?!</code></pre>))<br />', r'\1', content)
-    content = re.sub(r'(?m)(?<=<pre><code>)(.*)<br />', r'\1', content)
-
-    # Text formatting
-    content = re.sub(r' -- ', r' &ndash; ', content)
-    content = re.sub(r' --- ', r' &mdash; ', content)
-
-    # Hyperlinks
-    content = re.sub('{a:([^}:]*)}', r'<a href="\1">\1</a>', content)
-    content = re.sub('{a:([^}:]*):([^}]*)}', r'<a href="\1">\2</a>', content)
-
-    # Images
-    content = re.sub('{img:([^:]+)}', r'<p><img src="\1"/></p>', content)
-    content = re.sub('{img:([^:]+):([^}]*)}', r'<p><img src="\1" alt="\2"/><br />\2</p>', content)
-
-    # Remove escapes
-    content = re.sub(r'\\{(i|b|u|img|a|toc)\\}', r'{\1}', content)
-
-    # Cleanup content
-    content = re.sub('</p><br />', '</p>', content)
-    #content = re.sub('<br />$|\n', '', content)
-    content = re.sub('<br />$', '', content)
-
 
     # Return output
     req.headers_out.add('Content-Length', str(len(content)))
