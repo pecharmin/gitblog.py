@@ -4,41 +4,56 @@ Delivers Git-based websites via apache2/mod_python
 
 Author: Armin Pech <github (at) arminpech (dot) de>
 
+
 Description
 ===========
 
+Client --> Apache --> mod_python --> gitblog.py <--.
+                                                   |
+Desktop --> Local Repo --> Server Bare Repo -------´
+
+
 Setup with Apache2
 ==================
-* Install mod_python for Apache2 webserver
-* Setup a local Git repository on your desktop and create a directory structure
-* Create a VHost in your webserver configuration
+# Install mod_python for Apache2 webserver
+# Clone gitblog.py as webroot on your server
+# Setup a local Git repository on your desktop and create a directory structure
+# Setup a git bare repository on your server and push your local content to it
+# Create a VHost in your webserver configuration
 <VirtualHost *:80>
-	# VHost information
-	ServerName arminpech.local
-	ServerAdmin hostmaster@arminpech.de
+	ServerName gitblog.tld
+	ServerAdmin hostmaster@gitblog.tld
 
-	DocumentRoot /dev/null
-
-	# Define logging
 	LogLevel warn
 	ErrorLog /var/log/apache2/error_log-%{SERVER_NAME}
 	CustomLog /var/log/apache2/access_log-%{SERVER_NAME} vhost
 
-	# Secure access to the filesystem
-	<Directory />
-		Order allow,deny
-		Deny from all
-	</Directory>
+	DocumentRoot /var/www/gitblog.py/
 
-	# Deliver content from git repo by mod_python
-	SetHandler mod_python
-	PythonOptimize On
-	PythonAutoReload Off
-	PythonDebug Off
-	PythonHandlerModule /usr/local/bin/gitblog.py.git/gitblog.py
-	PythonOption gitblog.wwwroot /var/git/arminpech.de.git/
-	PythonOption gitblog.report_errors True
+	<Location />
+		Require all granted
+		SetHandler mod_python
+		PythonPath "sys.path + ['/var/www/gitblog.py']"
+		PythonOptimize On
+		PythonAutoReload Off
+		PythonDebug Off
+		PythonHandlerModule gitblog
+		PythonOption gitblog.wwwroot /var/git/gitblog.tld.git/
+		PythonOption gitblog.report_errors True
+	</Location>
 
 	# Compress output by filter
-	SetOutputFilter DEFLATE
+	<IfModule mod_deflate.c>
+		SetOutputFilter DEFLATE
+	</IfModule>
+
+	# Cache website responses
+	<IfModule mod_cache.c>
+		<IfModule mod_disk_cache.c>
+			CacheRoot /var/cache/apache2/gitblog.tld/
+			CacheEnable disk /
+			CacheDirLevels 5
+			CacheDirLength 3
+		</IfModule>
+	</IfModule>
 </VirtualHost>
