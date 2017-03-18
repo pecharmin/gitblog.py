@@ -62,7 +62,7 @@ available_output_type = {   'html':     'html',
                             'md':       'markdown',
                         }
 # Pathes that should not be delivered by gitblog.py, without leading and trailing slashes
-nondelivery_paths = ['.git', 'gitblog.py']
+nondelivery_paths = ['private']
 # Default Git commit for delivery
 default_git_commit = 'HEAD'
 # Default Git diff versions for comparsion delivery
@@ -114,7 +114,7 @@ def handler(req):
 
     # Check if resource should NOT be delivered
     for p in nondelivery_paths:
-        if '/' + p == req.uri[0:len(p)]:
+        if '/' + p == req.uri[0:len(p)+1]:
             return(apache.HTTP_FORBIDDEN)
 
     # Get request parameter as list
