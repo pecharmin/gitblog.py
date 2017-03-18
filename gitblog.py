@@ -55,9 +55,11 @@ from BeautifulSoup import BeautifulSoup
 # Default output text encoding
 default_output_type = 'html'
 # Available output text encodings (request parameter key => output format)
-available_output_type = {   'html': 'html',
-                            'ascii': 'plain',
-                            'plain': 'plain',
+available_output_type = {   'html':     'html',
+                            'ascii':    'plain',
+                            'plain':    'plain',
+                            'markdown': 'markdown',
+                            'md':       'markdown',
                         }
 # Pathes that should not be delivered by gitblog.py, without leading and trailing slashes
 nondelivery_paths = ['.git', 'gitblog.py']
@@ -215,10 +217,15 @@ def handler(req):
     except:
         return(apache.HTTP_NOT_FOUND)
 
-    # Convert content to UTF-8
+    # Return markdown
+    if output_type == 'markdown':
+        req.write(content)
+        return(apache.OK)
+
+    # Convert markdown to html
     content = markdown(content, extras=config['gitblog.markdown2_extras'])
 
-    # Return plain content directly
+    # Return plain
     if output_type == 'plain':
         content = ''.join(BeautifulSoup(content).findAll(text=True))
         req.headers_out.add('Content-Type', 'text/plain')
@@ -226,7 +233,7 @@ def handler(req):
         req.write(content)
         return(apache.OK)
 
-    # Return output
+    # Return html
     req.headers_out.add('Content-Type', 'text/html')
     req.headers_out.add('Content-Length', str(len(content)))
     req.write(content.encode('utf-8'))
