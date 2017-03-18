@@ -51,7 +51,7 @@ from markdown2 import markdown
 from BeautifulSoup import BeautifulSoup
 
 
-### Set configuration options
+### Set default configuration options
 # Default output text encoding
 default_output_type = 'html'
 # Available output text encodings (request parameter key => output format)
@@ -96,7 +96,6 @@ def handler(req):
                'gitblog.markdown2_extras']:
         config[ac] = config[ac].split(',')
 
-
     # Get request path as list
     requested_path = req.uri.split('/')
     del(requested_path[0])
@@ -104,12 +103,10 @@ def handler(req):
     if len(requested_git_path) > 1 and requested_git_path[-1] == '/':
         requested_git_path = requested_git_path[:-1]
 
-
     # Check if resource should NOT be delivered
     for p in nondelivery_paths:
         if '/' + p == req.uri[0:len(p)]:
             return(apache.HTTP_FORBIDDEN)
-
 
     # Get request parameter as list
     args = {}
@@ -124,7 +121,6 @@ def handler(req):
                     args[t[0]] = None
         del(_args, t)
 
-
     # Set generation options
     output_type = default_output_type
     for o in available_output_type:
@@ -135,7 +131,6 @@ def handler(req):
     user_git_commit = default_git_commit
     if 'ref' in args.keys():
         user_git_commit = args['ref'][0:39]
-
 
     # Read data from repo
     repo = git.Repo(config['gitblog.www_repo'], odbt=git.GitDB)
@@ -174,13 +169,11 @@ def handler(req):
     except:
         return(apache.HTTP_NOT_FOUND)
 
-
     # Get reference to Git by commit
     try:
         git_commit = repo.commit(user_git_commit)
     except:
         return(apache.HTTP_NOT_FOUND)
-
 
     # Get youngest commit of ressource by Git log
     #req.write('refs: %s\n' % repo.refs)
@@ -188,7 +181,6 @@ def handler(req):
     #for i in repo.head.reference.log():
     #    req.write('log entry: %s\n' % i)
     # TODO
-
 
     # Read object and get content
     try:
