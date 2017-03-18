@@ -144,15 +144,11 @@ def handler(req):
     # Read data from repo
     repo = git.Repo(config['gitblog.www_repo'], odbt=git.GitDB)
 
-    # Delivery some ressources directly
-    for p in config['gitblog.direct_delivery']:
-        if '/' + p == req.uri[0:len(p)+1]:
-            try:
-                req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_blob'])
-                req.content_type = repo.heads.master.commit.tree[req.uri[1:]].mime_type
-                return(apache.OK)
-            except:
-                return(apache.HTTP_NOT_FOUND)
+    # Get reference to Git by commit
+    try:
+        git_commit = repo.commit(user_git_commit)
+    except:
+        return(apache.HTTP_NOT_FOUND)
 
     # Check if ressource is available and deliverable
     try:
@@ -173,11 +169,16 @@ def handler(req):
     except:
         return(apache.HTTP_NOT_FOUND)
 
-    # Get reference to Git by commit
-    try:
-        git_commit = repo.commit(user_git_commit)
-    except:
-        return(apache.HTTP_NOT_FOUND)
+    # Delivery some ressources directly
+    for p in config['gitblog.direct_delivery']:
+        if '/' + p == req.uri[0:len(p)+1]:
+            try:
+                req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_blob'])
+                req.content_type = repo.heads.master.commit.tree[req.uri[1:]].mime_type
+                req.write(git_commit.tree[requested_git_path].data_stream.read())
+                return(apache.OK)
+            except:
+                return(apache.HTTP_NOT_FOUND)
 
     # Get youngest commit of ressource by Git log
     #req.write('refs: %s\n' % repo.refs)
