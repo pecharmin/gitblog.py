@@ -156,7 +156,6 @@ def handler(req):
 
     # Build up breadcrumb and check if ressource is available and deliverable
     repo_tree = []
-    user_tree = ''
     try:
         curr_tree = repo.tree(user_git_commit)
         for j, p in enumerate(requested_path):
