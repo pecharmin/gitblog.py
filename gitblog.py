@@ -196,8 +196,12 @@ def handler(req):
         if requested_object.type == 'blob':
             content = requested_object.data_stream.read()
             content = content.decode("utf-8")
-            content += "\n---\nReference [%s](?ref=%s)" % \
-                       (git_commit, git_commit)
+            # Add footer
+            breadcrumb = '/'
+            for i, l in enumerate(requested_path[0:-1]):
+                breadcrumb += '[%s](/%s)/' % (l, '/'.join(requested_path[:i+1]))
+            content += "\n---\n[Home](/) - %s - Reference [%s](?ref=%s)\n" % \
+                       (breadcrumb, git_commit, git_commit)
 
         # generate directory listing for tree objects
         elif requested_object.type == 'tree':
