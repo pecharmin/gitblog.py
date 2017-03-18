@@ -76,7 +76,7 @@ def handler(req):
      'gitblog.report_errors': False,
      # Pathes that are delivered directly by gitblog.py, without leading and trailing slashes
      'gitblog.direct_delivery': 'static',
-     'markdown2_extras': 'toc',
+     'gitblog.markdown2_extras': 'toc',
     }
 
     for k in config.keys():
@@ -90,8 +90,9 @@ def handler(req):
             else:
                 config[k] = req.get_options()[k]
 
-    config['gitblog.direct_delivery'] = config['gitblog.direct_delivery'].split(',')
-    config['markdown2_extras'] = config['markdown2_extras'].split(',')
+    for ac in ['gitblog.direct_delivery',
+               'gitblog.markdown2_extras']:
+        config[ac] = config[ac].split(',')
 
 
     # Get request path as list
@@ -142,7 +143,6 @@ def handler(req):
         if '/' + p == req.uri[0:len(p)+1]:
             try:
                 req.content_type = repo.heads.master.commit.tree[req.uri[1:]].mime_type
-                req.write(repo.heads.master.commit.tree[req.uri[1:]].data_stream.read())
                 return(apache.OK)
             except:
                 return(apache.HTTP_NOT_FOUND)
@@ -183,7 +183,7 @@ def handler(req):
     # Get youngest commit of ressource by Git log
     #req.write('refs: %s\n' % repo.refs)
     #req.write('log: %s\n' % repo.head.reference.log())
-    #for i in repo.head.reference.log:
+    #for i in repo.head.reference.log():
     #    req.write('log entry: %s\n' % i)
     # TODO
 
@@ -195,32 +195,35 @@ def handler(req):
         # read blob object's content
         if requested_object.type == 'blob':
             content = requested_object.data_stream.read()
+            content = content.decode("utf-8")
+            content += "\n---\nReference [%s](?ref=%s)" % \
+                       (git_commit, git_commit)
 
         # generate directory listing for tree objects
         elif requested_object.type == 'tree':
             content = ''
             for e in requested_object.trees:
-                content += str('{a:/%s/}\n' % e.path)
+                content += str('* [/%s/](/%s/)\n' % (e.path, e.path))
             for e in requested_object.blobs:
-                content += str('{a:/%s}\n' % e.path)
+                content += str('* [/%s](/%s)\n' % (e.path, e.path))
         else:
             return(apache.HTTP_UNSUPPORTED_MEDIA_TYPE)
     except:
         return(apache.HTTP_NOT_FOUND)
 
     # Convert content to UTF-8
-    content = content.decode("utf-8")
-    content += "\n---\nReference [%s](%s?ref=%s)" % \
-               (git_commit, req.uri, git_commit)
-    content = markdown(content, extras=config['markdown2_extras'])
+    content = markdown(content, extras=config['gitblog.markdown2_extras'])
 
     # Return plain content directly
     if output_type == 'plain':
+        content = ''.join(BeautifulSoup(content).findAll(text=True))
+        req.headers_out.add('Content-Type', 'text/plain')
         req.headers_out.add('Content-Length', str(len(content)))
         req.write(content)
         return(apache.OK)
 
     # Return output
+    req.headers_out.add('Content-Type', 'text/html')
     req.headers_out.add('Content-Length', str(len(content)))
     req.write(content.encode('utf-8'))
     return(apache.OK)
