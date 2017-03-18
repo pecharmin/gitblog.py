@@ -77,7 +77,6 @@ def handler(req):
      'gitblog.default_output_type': 'html',
      'gitblog.report_errors': 'False',
      # Pathes that are delivered directly by gitblog.py, without leading and trailing slashes
-     'gitblog.direct_delivery': 'static',
      'gitblog.markdown2_extras': 'toc',
      'gitblog.footer': 'True',
      'gitblog.max_age_blob': '1800',
@@ -97,8 +96,7 @@ def handler(req):
         else:
             config['gitblog.' + c] = False
 
-    for c in ['direct_delivery',
-               'markdown2_extras']:
+    for c in ['markdown2_extras']:
         config['gitblog.' + c] = config['gitblog.' + c].split(',')
 
     for c in ['max_age_blob',
@@ -169,17 +167,6 @@ def handler(req):
     except:
         return(apache.HTTP_NOT_FOUND)
 
-    # Delivery some ressources directly
-    for p in config['gitblog.direct_delivery']:
-        if '/' + p == req.uri[0:len(p)+1]:
-            try:
-                req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_blob'])
-                req.content_type = repo.heads.master.commit.tree[req.uri[1:]].mime_type
-                req.write(git_commit.tree[requested_git_path].data_stream.read())
-                return(apache.OK)
-            except:
-                return(apache.HTTP_NOT_FOUND)
-
     # Get youngest commit of ressource by Git log
     #req.write('refs: %s\n' % repo.refs)
     #req.write('log: %s\n' % repo.head.reference.log())
@@ -194,14 +181,21 @@ def handler(req):
         else:
             requested_object = git_commit.tree
 
-        # read blob object's content
+        # Read blob object's content
         if requested_object.type == 'blob':
             req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_blob'])
 
+            # Return non text blobs directly
+            if not requested_object.mime_type == 'text/plain':
+                req.content_type = requested_object.type
+                req.write(requested_object.data_stream.read())
+                return(apache.OK)
+
+            # Get text blob content
             content = requested_object.data_stream.read()
             content = content.decode('utf-8')
 
-        # generate directory listing for tree objects
+        # Generate directory listing for tree objects
         elif requested_object.type == 'tree':
             req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_tree'])
 
