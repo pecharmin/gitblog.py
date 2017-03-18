@@ -154,19 +154,15 @@ def handler(req):
             except:
                 return(apache.HTTP_NOT_FOUND)
 
-    # Build up breadcrumb and check if ressource is available and deliverable
-    repo_tree = []
+    # Check if ressource is available and deliverable
     try:
-        curr_tree = repo.tree(user_git_commit)
+        elem_found = False
         for j, p in enumerate(requested_path):
-            elem_found = False
-            for i, e in enumerate(curr_tree):
+            for i, e in enumerate(repo.tree(user_git_commit)):
                 # Check if delivery of path is allowed
                 if not e.path in nondelivery_paths:
                     # Add directory to breadcrumb
-                    repo_tree += [ e.path ]
                     if p == e.path[len(p)*-1:]:
-                        curr_tree = curr_tree[i]
                         elem_found = True
             if p == '' and j == len(requested_path)-1:
                 elem_found = True
@@ -174,7 +170,6 @@ def handler(req):
                 return(apache.HTTP_NOT_FOUND)
         if elem_found is False:
             return(apache.HTTP_NOT_FOUND)
-        repo_tree.sort()
     except:
         return(apache.HTTP_NOT_FOUND)
 
