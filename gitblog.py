@@ -75,26 +75,35 @@ def handler(req):
     config = {
      'gitblog.www_repo': '/dev/null',
      'gitblog.default_output_type': 'html',
-     'gitblog.report_errors': False,
+     'gitblog.report_errors': 'False',
      # Pathes that are delivered directly by gitblog.py, without leading and trailing slashes
      'gitblog.direct_delivery': 'static',
      'gitblog.markdown2_extras': 'toc',
+     'gitblog.footer': 'True',
+     'gitblog.max_age_blob': '1800',
+     'gitblog.max_age_tree': '600',
     }
 
     for k in config.keys():
         if k in req.get_options().keys() and \
           not req.get_options()[k] is None and \
           not req.get_options()[k] == '':
-            if req.get_options()[k] == 'True':
-                config[k] = True
-            elif req.get_options()[k] == 'False':
-                config[k] = False
-            else:
-                config[k] = req.get_options()[k]
+            config[k] = req.get_options()[k]
 
-    for ac in ['gitblog.direct_delivery',
-               'gitblog.markdown2_extras']:
-        config[ac] = config[ac].split(',')
+    for c in ['report_errors',
+              'footer']:
+        if config['gitblog.' + c] == 'True':
+            config['gitblog.' + c] = True
+        else:
+            config['gitblog.' + c] = False
+
+    for c in ['direct_delivery',
+               'markdown2_extras']:
+        config['gitblog.' + c] = config['gitblog.' + c].split(',')
+
+    for c in ['max_age_blob',
+              'max_age_tree']:
+        config['gitblog.' + c] = int(config['gitblog.' + c])
 
     # Get request path as list
     requested_path = req.uri.split('/')
@@ -139,6 +148,7 @@ def handler(req):
     for p in config['gitblog.direct_delivery']:
         if '/' + p == req.uri[0:len(p)+1]:
             try:
+                req.headers_out.add('Content-Length', str(config['gitblog.max_age_tree']))
                 req.content_type = repo.heads.master.commit.tree[req.uri[1:]].mime_type
                 return(apache.OK)
             except:
@@ -189,17 +199,11 @@ def handler(req):
         # read blob object's content
         if requested_object.type == 'blob':
             content = requested_object.data_stream.read()
-            content = content.decode("utf-8")
-            # Add footer
-            breadcrumb = '/'
-            for i, l in enumerate(requested_path[0:-1]):
-                breadcrumb += '[%s](/%s)/' % (l, '/'.join(requested_path[:i+1]))
-            content += "\n---\n[Home](/) - %s - Reference [%s](?ref=%s)\n" % \
-                       (breadcrumb, git_commit, git_commit)
+            content = content.decode('utf-8')
 
         # generate directory listing for tree objects
         elif requested_object.type == 'tree':
-            content = ''
+            content = '# Directory Tree\n'
             for e in requested_object.trees:
                 content += str('* [/%s/](/%s/)\n' % (e.path, e.path))
             for e in requested_object.blobs:
@@ -209,10 +213,24 @@ def handler(req):
     except:
         return(apache.HTTP_NOT_FOUND)
 
+    # Add footer
+    if config['gitblog.footer'] == True:
+        breadcrumb = '/'
+        for i, l in enumerate(requested_path[0:-1]):
+            breadcrumb += '[%s](/%s)/' % (l, '/'.join(requested_path[:i+1]))
+
+        content += '\n---\n'
+        if not output_type == 'plain':
+            content += '[Home](/) - '
+        content += '%s%s - Reference [%s](?ref=%s)\n' % \
+                   (breadcrumb, requested_path[-1],
+                    git_commit, git_commit)
+
     # Return markdown
     if output_type == 'markdown':
         req.headers_out.add('Content-Type', 'text/markdown; charset=UTF-8')
         req.headers_out.add('Content-Length', str(len(content)))
+        req.headers_out.add('Content-Length', str(config['gitblog.max_age_blob']))
         req.write(content)
         return(apache.OK)
 
@@ -224,12 +242,14 @@ def handler(req):
         content = ''.join(BeautifulSoup(content).findAll(text=True))
         req.headers_out.add('Content-Type', 'text/plain; charset=UTF-8')
         req.headers_out.add('Content-Length', str(len(content)))
+        req.headers_out.add('Content-Length', str(config['gitblog.max_age_blob']))
         req.write(content)
         return(apache.OK)
 
     # Return html
     req.headers_out.add('Content-Type', 'text/html; charset=UTF-8')
     req.headers_out.add('Content-Length', str(len(content)))
+    req.headers_out.add('Content-Length', str(config['gitblog.max_age_blob']))
     req.write(content.encode('utf-8'))
     return(apache.OK)
 
