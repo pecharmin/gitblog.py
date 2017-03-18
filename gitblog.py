@@ -148,7 +148,7 @@ def handler(req):
     for p in config['gitblog.direct_delivery']:
         if '/' + p == req.uri[0:len(p)+1]:
             try:
-                req.headers_out.add('Content-Length', str(config['gitblog.max_age_tree']))
+                req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_tree'])
                 req.content_type = repo.heads.master.commit.tree[req.uri[1:]].mime_type
                 return(apache.OK)
             except:
@@ -230,7 +230,7 @@ def handler(req):
     if output_type == 'markdown':
         req.headers_out.add('Content-Type', 'text/markdown; charset=UTF-8')
         req.headers_out.add('Content-Length', str(len(content)))
-        req.headers_out.add('Content-Length', str(config['gitblog.max_age_blob']))
+        req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_blob'])
         req.write(content)
         return(apache.OK)
 
@@ -242,14 +242,14 @@ def handler(req):
         content = ''.join(BeautifulSoup(content).findAll(text=True))
         req.headers_out.add('Content-Type', 'text/plain; charset=UTF-8')
         req.headers_out.add('Content-Length', str(len(content)))
-        req.headers_out.add('Content-Length', str(config['gitblog.max_age_blob']))
+        req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_blob'])
         req.write(content)
         return(apache.OK)
 
     # Return html
     req.headers_out.add('Content-Type', 'text/html; charset=UTF-8')
     req.headers_out.add('Content-Length', str(len(content)))
-    req.headers_out.add('Content-Length', str(config['gitblog.max_age_blob']))
+    req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_blob'])
     req.write(content.encode('utf-8'))
     return(apache.OK)
 
