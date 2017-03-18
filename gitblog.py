@@ -219,6 +219,8 @@ def handler(req):
 
     # Return markdown
     if output_type == 'markdown':
+        req.headers_out.add('Content-Type', 'text/markdown')
+        req.headers_out.add('Content-Length', str(len(content)))
         req.write(content)
         return(apache.OK)
 
