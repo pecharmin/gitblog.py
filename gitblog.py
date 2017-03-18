@@ -189,7 +189,10 @@ def handler(req):
 
     # Read object and get content
     try:
-        requested_object = git_commit.tree[requested_git_path]
+        if len(requested_git_path) > 0:
+            requested_object = git_commit.tree[requested_git_path]
+        else:
+            requested_object = git_commit.tree
 
         # read blob object's content
         if requested_object.type == 'blob':
