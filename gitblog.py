@@ -219,7 +219,7 @@ def handler(req):
 
     # Return markdown
     if output_type == 'markdown':
-        req.headers_out.add('Content-Type', 'text/markdown')
+        req.headers_out.add('Content-Type', 'text/markdown; charset=UTF-8')
         req.headers_out.add('Content-Length', str(len(content)))
         req.write(content)
         return(apache.OK)
@@ -230,13 +230,13 @@ def handler(req):
     # Return plain
     if output_type == 'plain':
         content = ''.join(BeautifulSoup(content).findAll(text=True))
-        req.headers_out.add('Content-Type', 'text/plain')
+        req.headers_out.add('Content-Type', 'text/plain; charset=UTF-8')
         req.headers_out.add('Content-Length', str(len(content)))
         req.write(content)
         return(apache.OK)
 
     # Return html
-    req.headers_out.add('Content-Type', 'text/html')
+    req.headers_out.add('Content-Type', 'text/html; charset=UTF-8')
     req.headers_out.add('Content-Length', str(len(content)))
     req.write(content.encode('utf-8'))
     return(apache.OK)
