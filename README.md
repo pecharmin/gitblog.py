@@ -38,12 +38,15 @@ Desktop --> Local Repo --> Server Bare Repo -------´
 * History and permanent links based on git commits/references
 
   `/blog/1?ref=93faf2001885d7292c1d757bd21da9b10e786b42`
+
   `/blog/1?ref=mytag1`
 
 * Multiple branches
 
   `/blog/2?ref=HEAD`
+
   `/blog/2?ref=master`
+
   `/blog/2?ref=preview`
 
 ## Setup
