@@ -50,10 +50,6 @@ from datetime import datetime
 from markdown2 import markdown
 from BeautifulSoup import BeautifulSoup
 
-
-### Set default configuration options
-# Default output text encoding
-default_output_type = 'html'
 # Available output text encodings (request parameter key => output format)
 available_output_type = {   'html':     'html',
                             'ascii':    'plain',
@@ -61,27 +57,21 @@ available_output_type = {   'html':     'html',
                             'markdown': 'markdown',
                             'md':       'markdown',
                         }
-# Pathes that should not be delivered by gitblog.py, without leading and trailing slashes
-nondelivery_paths = ['private']
-# Default Git commit for delivery
-default_git_commit = 'HEAD'
-# Default Git diff versions for comparsion delivery
-# TODO
-
 
 ### Handle HTTP requests
 def handler(req):
     # Set PythonOption configurations
     config = {
-     'gitblog.www_repo': '/dev/null',
-     'gitblog.default_output_type': 'html',
      'gitblog.report_errors': 'False',
-     # Pathes that are delivered directly by gitblog.py, without leading and trailing slashes
-     'gitblog.markdown2_extras': 'toc',
+     'gitblog.www_repo': '/dev/null',
+     'gitblog.default_ref': 'HEAD',
+     'gitblog.default_output_type': 'html',
      'gitblog.footer': 'True',
+     'gitblog.date_format': '%Y-%m-%d %H:%M',
+     'gitblog.markdown2_extras': 'toc',
      'gitblog.max_age_blob': '1800',
      'gitblog.max_age_tree': '600',
-     'gitblog.date_format': '%Y-%m-%d %H:%M',
+     'gitblog.denied_path': 'private',
     }
 
     for k in config.keys():
@@ -97,7 +87,8 @@ def handler(req):
         else:
             config['gitblog.' + c] = False
 
-    for c in ['markdown2_extras']:
+    for c in ['markdown2_extras',
+              'denied_path']:
         config['gitblog.' + c] = config['gitblog.' + c].split(',')
 
     for c in ['max_age_blob',
@@ -105,15 +96,12 @@ def handler(req):
         config['gitblog.' + c] = int(config['gitblog.' + c])
 
     # Get request path as list
-    requested_path = req.uri.split('/')
-    del(requested_path[0])
-    requested_git_path = '/'.join(requested_path)
-    if len(requested_git_path) > 1 and requested_git_path[-1] == '/':
-        requested_git_path = requested_git_path[:-1]
+    requested_path = req.uri.strip('/').split('/')
+    requested_path = list(filter(None, requested_path))
 
     # Check if resource should NOT be delivered
-    for p in nondelivery_paths:
-        if '/' + p == req.uri[0:len(p)+1]:
+    for p in config['gitblog.denied_path']:
+        if '/' + p.strip('/') == req.uri[0:len(p)+1]:
             return(apache.HTTP_FORBIDDEN)
 
     # Get request parameter as list
@@ -121,8 +109,10 @@ def handler(req):
     if not req.args is None and len(req.args) > 0:
         _args = req.args.split('&')
         if len(_args) > 0:
-            for a in req.args.split('&'):
+            for a in _args:
                 t = a.split('=')
+                t[0] = ''.join(filter(str.isalpha, t[0]))
+                t[1] = ''.join(filter(str.isalpha, t[1]))
                 if len(t) > 1:
                     args[t[0]] = t[1]
                 else:
@@ -134,53 +124,28 @@ def handler(req):
     for o in available_output_type:
         if o in args:
             output_type = available_output_type[o]
+            break
 
     # Set Git commit
-    user_git_commit = default_git_commit
+    git_ref = config['gitblog.default_ref']
     if 'ref' in args.keys():
-        user_git_commit = args['ref'][0:39]
+        git_ref = args['ref'][0:39]
 
     # Read data from repo
     repo = git.Repo(config['gitblog.www_repo'], odbt=git.GitDB)
 
-    # Get reference to Git by commit
+    # Get requested commit
     try:
-        git_commit = repo.commit(user_git_commit)
+        git_obj = repo.commit(git_ref)
     except:
         return(apache.HTTP_NOT_FOUND)
-
-    # Check if ressource is available and deliverable
-    try:
-        elem_found = False
-        for j, p in enumerate(requested_path):
-            for i, e in enumerate(repo.tree(user_git_commit)):
-                # Check if delivery of path is allowed
-                if not e.path in nondelivery_paths:
-                    # Add directory to breadcrumb
-                    if p == e.path[len(p)*-1:]:
-                        elem_found = True
-            if p == '' and j == len(requested_path)-1:
-                elem_found = True
-            if elem_found is False:
-                return(apache.HTTP_NOT_FOUND)
-        if elem_found is False:
-            return(apache.HTTP_NOT_FOUND)
-    except:
-        return(apache.HTTP_NOT_FOUND)
-
-    # Get youngest commit of ressource by Git log
-    #req.write('refs: %s\n' % repo.refs)
-    #req.write('log: %s\n' % repo.head.reference.log())
-    #for i in repo.head.reference.log():
-    #    req.write('log entry: %s\n' % i)
-    # TODO
 
     # Read object and get content
     try:
-        if len(requested_git_path) > 0:
-            requested_object = git_commit.tree[requested_git_path]
+        if len(requested_path) > 0:
+            requested_object = git_obj.tree['/'.join(requested_path)]
         else:
-            requested_object = git_commit.tree
+            requested_object = git_obj.tree
 
         # Read blob object's content
         if requested_object.type == 'blob':
@@ -215,18 +180,21 @@ def handler(req):
     # Add footer
     if config['gitblog.footer'] == True:
         breadcrumb = '/'
-        for i, l in enumerate(requested_path[0:-1]):
-            breadcrumb += '[%s](/%s)/' % (l, '/'.join(requested_path[:i+1]))
+        last_path_entry = ''
+        if len(requested_path) > 0:
+            last_path_entry = requested_path[-1]
+            for i, l in enumerate(requested_path[0:-1]):
+                breadcrumb += '[%s](/%s)/' % (l, '/'.join(requested_path[:i+1]))
 
         content += '\n\n---\n'
         if not output_type == 'plain':
             content += '[Home](/) - '
         content += '%s%s - Updated on %s by %s - Git Reference [%s](?ref=%s)\n' % \
-                   (breadcrumb, requested_path[-1],
-                    datetime.fromtimestamp(git_commit.committed_date).strftime(
+                   (breadcrumb, last_path_entry,
+                    datetime.fromtimestamp(git_obj.committed_date).strftime(
                       config['gitblog.date_format']),
-                    git_commit.author.name,
-                    git_commit, git_commit)
+                    git_obj.author.name,
+                    git_obj, git_obj)
 
     # Return markdown
     if output_type == 'markdown':
