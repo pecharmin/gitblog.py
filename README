@@ -1,59 +1,46 @@
-gitblob.py
-==========
-Delivers Git-based websites via apache2/mod_python
+# gitblob.py
+This program renders websites from a bare git repository.
+It's a handler for mod_python in the Apache2 webserver.
 
 Author: Armin Pech <github (at) arminpech (dot) de>
+(Copyright & License)[/LICENSE]
 
+## Description
+You manage your website content hierachically in a local git repository
+based on normal files and directories:
 
-Description
-===========
+```
+/
+|
+`-- /about
+|   |
+|   `-- /about/me
+|   `-- /about/imprint
+`-- /blog
+    |
+    `-- /blog/2017-01-01-happy-new-year
+```
 
+After content modifications you push your local repository content
+to a remote base repository on your webserver.
+The gitblog.py handler serves client requests from the base repo.
+The URI of the request matches the file and directory structure of
+your repository content.
+
+```
 Client --> Apache --> mod_python --> gitblog.py <--.
                                                    |
 Desktop --> Local Repo --> Server Bare Repo -------´
+```
 
+## Features
+* History and permanent links based on git commits/references
+  /blog/1?ref=93faf2001885d7292c1d757bd21da9b10e786b42
+  /blog/1?ref=mytag1
+* Multiple branches
+  /blog/2?ref=HEAD
+  /blog/2?ref=master
+  /blog/2?ref=preview
 
-Setup with Apache2
-==================
-# Install mod_python for Apache2 webserver
-# Clone gitblog.py as webroot on your server
-# Setup a local Git repository on your desktop and create a directory structure
-# Setup a git bare repository on your server and push your local content to it
-# Create a VHost in your webserver configuration
-<VirtualHost *:80>
-	ServerName gitblog.tld
-	ServerAdmin hostmaster@gitblog.tld
-
-	LogLevel warn
-	ErrorLog /var/log/apache2/error_log-%{SERVER_NAME}
-	CustomLog /var/log/apache2/access_log-%{SERVER_NAME} vhost
-
-	DocumentRoot /var/www/gitblog.py/
-
-	<Location />
-		Require all granted
-		SetHandler mod_python
-		PythonPath "sys.path + ['/var/www/gitblog.py']"
-		PythonOptimize On
-		PythonAutoReload Off
-		PythonDebug Off
-		PythonHandlerModule gitblog
-		PythonOption gitblog.wwwroot /var/git/gitblog.tld.git/
-		PythonOption gitblog.report_errors True
-	</Location>
-
-	# Compress output by filter
-	<IfModule mod_deflate.c>
-		SetOutputFilter DEFLATE
-	</IfModule>
-
-	# Cache website responses
-	<IfModule mod_cache.c>
-		<IfModule mod_disk_cache.c>
-			CacheRoot /var/cache/apache2/gitblog.tld/
-			CacheEnable disk /
-			CacheDirLevels 5
-			CacheDirLength 3
-		</IfModule>
-	</IfModule>
-</VirtualHost>
+## Setup
+see (SETUP)[/SETUP]
