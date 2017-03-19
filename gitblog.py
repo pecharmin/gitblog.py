@@ -81,6 +81,7 @@ def handler(req):
      'gitblog.footer': 'True',
      'gitblog.max_age_blob': '1800',
      'gitblog.max_age_tree': '600',
+     'gitblog.date_format': '%Y-%m-%d %H:%M',
     }
 
     for k in config.keys():
@@ -220,8 +221,11 @@ def handler(req):
         content += '\n\n---\n'
         if not output_type == 'plain':
             content += '[Home](/) - '
-        content += '%s%s - Reference [%s](?ref=%s)\n' % \
+        content += '%s%s - Updated on %s by %s - Git Reference [%s](?ref=%s)\n' % \
                    (breadcrumb, requested_path[-1],
+                    datetime.fromtimestamp(git_commit.committed_date).strftime(
+                      config['gitblog.date_format']),
+                    git_commit.author.name,
                     git_commit, git_commit)
 
     # Return markdown
