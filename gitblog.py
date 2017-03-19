@@ -199,11 +199,13 @@ def handler(req):
         elif requested_object.type == 'tree':
             req.headers_out.add('Cache-Control', 'max-age=%i' % config['gitblog.max_age_tree'])
 
-            content = '# Directory Tree\n'
+            content = []
             for e in requested_object.trees:
-                content += str('* [/%s/](/%s/)\n' % (e.path, e.path))
+                content += [ str('* [/%s/](/%s/)' % (e.path, e.path)) ]
             for e in requested_object.blobs:
-                content += str('* [/%s](/%s)\n' % (e.path, e.path))
+                content += [ str('* [/%s](/%s)' % (e.path, e.path)) ]
+            content.sort()
+            content = '# Directory Tree\n' + '\n'.join(content)
         else:
             return(apache.HTTP_UNSUPPORTED_MEDIA_TYPE)
     except:
@@ -215,7 +217,7 @@ def handler(req):
         for i, l in enumerate(requested_path[0:-1]):
             breadcrumb += '[%s](/%s)/' % (l, '/'.join(requested_path[:i+1]))
 
-        content += '\n---\n'
+        content += '\n\n---\n'
         if not output_type == 'plain':
             content += '[Home](/) - '
         content += '%s%s - Reference [%s](?ref=%s)\n' % \
