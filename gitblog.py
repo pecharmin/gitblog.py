@@ -1,32 +1,33 @@
 # -*- coding: utf-8 -*-
 # gitblog.py
 """
-This Python program gitblog.py handles HTTP requests when it is loaded by mod_python and
-returns different types of output formats from a git repository as web site basis.
-The program can be used to deliver multiple sites/sources. The repository source is
-set by the Apache option "PythonOption gitblog.www_repo <path to git repo>".
+This Python program handles HTTP requests when it is loaded by mod_python and
+returns different types of output formats like HTML or markdown from a git repository.
+The program can be used to deliver multiple sites from different repository sources.
+The source repository is set by the Apache option "PythonOption gitblog.www_repo <path to git repo>".
+Markdown is the excepted format of files commited into the repository. The Markdown
+syntax can be converted to several output formats.
 
-Copyright (c) 2013, 2014 Armin Pech <gitblog.py (at) arminpech (dot) de>, Duesseldorf, Germany.
+Copyright (c) 2013, 2014, 2017 Armin Pech <gitblog.py (at) arminpech (dot) de>, Duesseldorf, Germany.
 
 Request for different output formats:
-/about/me -- Default output is HTML
-/about/imprint?acsii or /about/imprint?plain -- for unformatted output
-/index?xml -- output in XML format
+/about/me            -- Default output is HTML
+/about/me?html       -- Return HTML output
+/about/me?markdown   -- Return markdown syntax from file
+/about/me?md         -- Return markdown syntax from file
+/about/imprint?acsii -- Plain, syntax-free output
+/about/imprint?plain -- Plain, syntax-free output
 
 Request content in a particular version:
-/about/me -- Default version is HEAD
-/about/blogroll?ref=<git_ref> -- Return content in specific version
+/about/me               -- Default git reference is HEAD
+/about/me?ref=<git_ref> -- Return content in specific version
+/about/me?ref=HEAD~10   -- Return content in specific version
+/about/me?ref=7431a3ca6 -- Return content in specific version
 
-# TODO: Versions
-
+# TODO: Diff support
 Request unified diff for a content:
 /about/me?diff=<commit>[:HEAD] -- Return diff of a resource between commit and HEAD
 /about/imprint?diff=<commit1>:<commit2> -- Return diff of a resource between two defined commits
-
-
-Available PyhtonOption configurations:
-gitblog.www_repo             Base git repository to deliver content from
-
 
 TODO
 * return 404er if commit not found
