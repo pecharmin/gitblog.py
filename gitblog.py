@@ -107,8 +107,12 @@ def handler(req):
         if len(_args) > 0:
             for a in _args:
                 t = a.split('=')
-                t[0] = ''.join(filter(str.isalpha, t[0]))
-                t[1] = ''.join(filter(str.isalpha, t[1]))
+                t[0] = ''.join(filter(str.isalnum, t[0]))
+                try:
+                    t[1] = ''.join(filter(str.isalnum, t[1]))
+                except:
+                    # Parameter has no value
+                    pass
                 if len(t) > 1:
                     args[t[0]] = t[1]
                 else:
