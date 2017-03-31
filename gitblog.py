@@ -41,6 +41,8 @@ TODO
 from mod_python import apache
 # Read python error
 import sys
+# Normalize symlink pathnames for git tree
+from os.path import normpath
 # Regular Expression manipulation of contents with placeholders
 import re
 # Read content from git repository
@@ -150,8 +152,8 @@ def handler(req):
         # Resolve symlink
         while requested_object.type == 'blob' and requested_object.mode == requested_object.link_mode:
             try:
-                link_requested_path = '/'.join(requested_path[:-1]) + '/' + \
-                                      requested_object.data_stream.read().decode('utf-8')
+                link_requested_path = normpath('/'.join(requested_path[:-1]) + '/' + \
+                                      requested_object.data_stream.read().decode('utf-8'))
                 requested_path = link_requested_path.strip('/').split('/')
                 requested_path = list(filter(None, requested_path))
                 requested_object = git_obj.tree[link_requested_path]
