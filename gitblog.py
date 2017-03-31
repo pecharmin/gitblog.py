@@ -99,11 +99,6 @@ def handler(req):
     requested_path = req.uri.strip('/').split('/')
     requested_path = list(filter(None, requested_path))
 
-    # Check if resource should NOT be delivered
-    for p in config['gitblog.denied_path']:
-        if '/' + p.strip('/') == req.uri[0:len(p)+1]:
-            return(apache.HTTP_FORBIDDEN)
-
     # Get request parameter as list
     args = {}
     if not req.args is None and len(req.args) > 0:
@@ -120,7 +115,7 @@ def handler(req):
         del(_args, t)
 
     # Set generation options
-    output_type = default_output_type
+    output_type = config['gitblog.default_output_type']
     for o in available_output_type:
         if o in args:
             output_type = available_output_type[o]
@@ -146,6 +141,22 @@ def handler(req):
             requested_object = git_obj.tree['/'.join(requested_path)]
         else:
             requested_object = git_obj.tree
+
+        # Resolve symlink
+        while requested_object.type == 'blob' and requested_object.mode == requested_object.link_mode:
+            try:
+                link_requested_path = '/'.join(requested_path[:-1]) + '/' + \
+                                      requested_object.data_stream.read().decode('utf-8')
+                requested_path = link_requested_path.strip('/').split('/')
+                requested_path = list(filter(None, requested_path))
+                requested_object = git_obj.tree[link_requested_path]
+            except:
+                return(apache.HTTP_NOT_FOUND)
+
+        # Check if resource should NOT be delivered
+        for p in config['gitblog.denied_path']:
+            if p.strip('/') == requested_path[0:len(p)+1]:
+                return(apache.HTTP_FORBIDDEN)
 
         # Read blob object's content
         if requested_object.type == 'blob':
