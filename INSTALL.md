@@ -98,16 +98,16 @@
 The behavior of gitblog.py can be configured by passing key/value pairs
 from Apache2 using PythonOption directives:
 
-| Option name                 | Default                | Description                                 | Possible values       |
-|-----------------------------|------------------------|---------------------------------------------|-----------------------|
-| gitblog.report_errors       | False                  | Should errors be returned to users?         | Boolean               |
-| gitblog.www_repo            | /dev/null              | Path to the content git base repository     | Filesystem path       |
-| gitblog.default_ref         | HEAD                   | Default git reference to display            | Any git reference     |
-| gitblog.default_output_type | html                   | Output format for called site               | html, plain, markdown |
-| gitblog.footer              | True                   | Display footer meta information             | Boolean               |
-| gitblog.date_format         | %Y-%m-%d %H:%M         | Date format in footer                       | String, see datetime  |
-| gitblog.markdown2_extras    | toc                    | Extra options when parsing content source   | Array, see markdown2  |
-| gitblog.max_age_blob        | 1800                   | Cache-Control max-age for non-text elements | Integer               |
-| gitblog.max_age_tree        | 600                    | Cache-Control max-age for directory lising  | Integer               |
-| gitblog.denied_path         | [ private, templates ] | Paths not to deliver (without leeding /)    | Array[String]         |
+| Option name                 | Default                | Description                                 | Possible values                               |
+|-----------------------------|------------------------|---------------------------------------------|-----------------------------------------------|
+| gitblog.report_errors       | False                  | Should errors be returned to users?         | Boolean                                       |
+| gitblog.www_repo            | /dev/null              | Path to the content git base repository     | Filesystem path                               |
+| gitblog.default_ref         | HEAD                   | Default git reference to display            | Any git reference                             |
+| gitblog.default_output_type | html                   | Output format for called site               | html, plain, markdown                         |
+| gitblog.footer              | True                   | Display footer meta information             | Boolean                                       |
+| gitblog.date_format         | %Y-%m-%d %H:%M         | Date format in footer                       | String, see datetime                          |
+| gitblog.markdown2_extras    | toc                    | Extra options when parsing content source   | String, comma separated values, see markdown2 |
+| gitblog.max_age_blob        | 1800                   | Cache-Control max-age for non-text elements | Integer                                       |
+| gitblog.max_age_tree        | 600                    | Cache-Control max-age for directory lising  | Integer                                       |
+| gitblog.denied_path         | private,templates      | Paths not to deliver (without leeding /)    | String, comma separated values                |
 | gitblog.redirect_code       | HTTP_MOVED_PERMANENTLY | HTTP response code for redirects on links   | HTTP_MOVED_PERMANENTLY, HTTP_MOVED_TEMPORARILY, HTTP_TEMPORARY_REDIRECT |

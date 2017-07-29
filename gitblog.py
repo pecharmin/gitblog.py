@@ -74,7 +74,7 @@ def handler(req):
      'gitblog.markdown2_extras': 'toc',
      'gitblog.max_age_blob': '1800',
      'gitblog.max_age_tree': '600',
-     'gitblog.denied_path': 'private',
+     'gitblog.denied_path': 'private,templates',
      'gitblog.redirect_code': 'HTTP_MOVED_PERMANENTLY',
     }
 
