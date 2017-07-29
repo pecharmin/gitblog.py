@@ -75,6 +75,7 @@ def handler(req):
      'gitblog.max_age_blob': '1800',
      'gitblog.max_age_tree': '600',
      'gitblog.denied_path': 'private',
+     'gitblog.redirect_code': 'HTTP_MOVED_PERMANENTLY',
     }
 
     for k in config.keys():
@@ -97,6 +98,12 @@ def handler(req):
     for c in ['max_age_blob',
               'max_age_tree']:
         config['gitblog.' + c] = int(config['gitblog.' + c])
+
+    if not config['gitblog.redirect_code'] in [ \
+      'HTTP_MOVED_PERMANENTLY',
+      'HTTP_MOVED_TEMPORARILY',
+      'HTTP_TEMPORARY_REDIRECT']:
+        config['gitblog.redirect_code'] = 'HTTP_MOVED_PERMANENTLY'
 
     # Get request path as list
     requested_path = req.uri.strip('/').split('/')
@@ -156,7 +163,16 @@ def handler(req):
                                       requested_object.data_stream.read().decode('utf-8'))
                 requested_path = link_requested_path.strip('/').split('/')
                 requested_path = list(filter(None, requested_path))
-                requested_object = git_obj.tree[link_requested_path]
+
+                redirect_target = '/'.join(requested_path)
+                # TODO: Moved protocol values for verfication
+                #       to program parameters
+                if not redirect_target[0:7] == 'http://' and \
+                   not redirect_target[0:8] == 'https://':
+                    redirect_target = '/' + redirect_target
+
+                req.headers_out.add('Location', redirect_target)
+                return(getattr(apache, config['gitblog.redirect_code']))
             except:
                 return(apache.HTTP_NOT_FOUND)
 
