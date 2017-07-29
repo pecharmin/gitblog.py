@@ -4,7 +4,7 @@ It's a handler for mod_python in the Apache2 webserver.
 
 Author: Armin Pech <github (at) arminpech (dot) de>
 
-[Copyright & License](/LICENSE)
+[Copyright & License](/LICENSE.md)
 
 ## Description
 You manage your website content hierachically in a local git repository
@@ -50,4 +50,5 @@ Desktop --> Local Repo --> Server Bare Repo -------´
   `/blog/2?ref=preview`
 
 ## Setup
-see [SETUP](/SETUP)
+Whould you like to setup gitblog for your site?
+See [INSTALL](/INSTALL.md)
