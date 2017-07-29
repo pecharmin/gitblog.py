@@ -32,7 +32,7 @@ Request unified diff for a content:
 TODO
 * return 404er if commit not found
 * get last modified information from commit of requested path not of current commit
-* print last commit of path in footer
+* print last commit of current path in footer
 * special index page / homepage
 """
 
