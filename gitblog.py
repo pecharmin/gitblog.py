@@ -52,6 +52,7 @@ from datetime import datetime
 # Output formatting
 from markdown2 import markdown
 from BeautifulSoup import BeautifulSoup
+from string import Template
 
 # Available output text encodings (request parameter key => output format)
 available_output_type = {   'html':     'html',
@@ -67,6 +68,7 @@ def handler(req):
     config = {
      'gitblog.report_errors': 'False',
      'gitblog.www_repo': '/dev/null',
+     'gitblog.template_path': 'templates',
      'gitblog.default_ref': 'HEAD',
      'gitblog.default_output_type': 'html',
      'gitblog.footer': 'True',
@@ -220,10 +222,10 @@ def handler(req):
             for i, l in enumerate(requested_path[0:-1]):
                 breadcrumb += '[%s](/%s)/' % (l, '/'.join(requested_path[:i+1]))
 
-        content += '\n\n---\n'
+        footer = '\n\n---\n'
         if not output_type == 'plain':
-            content += '[Home](/) - '
-        content += '%s%s - Updated on %s by %s - Git Reference [%s](?ref=%s)\n' % \
+            footer += '[Home](/) - '
+        footer += '%s%s - Updated on %s by %s - Git Reference [%s](?ref=%s)\n' % \
                    (breadcrumb, last_path_entry,
                     datetime.fromtimestamp(git_obj.committed_date).strftime(
                       config['gitblog.date_format']),
@@ -233,25 +235,35 @@ def handler(req):
     # Return markdown
     if output_type == 'markdown':
         req.headers_out.add('Content-Type', 'text/markdown; charset=UTF-8')
-        req.headers_out.add('Content-Length', str(len(content)))
-        req.write(content)
+        req.headers_out.add('Content-Length', str(len(content) + len(footer)))
+        req.write(content + footer)
         return(apache.OK)
 
     # Convert markdown to html
     content = markdown(content, extras=config['gitblog.markdown2_extras'])
+    footer = markdown(footer, extras=config['gitblog.markdown2_extras'])
 
     # Return plain
     if output_type == 'plain':
         content = ''.join(BeautifulSoup(content).findAll(text=True))
         req.headers_out.add('Content-Type', 'text/plain; charset=UTF-8')
-        req.headers_out.add('Content-Length', str(len(content)))
-        req.write(content)
+        req.headers_out.add('Content-Length', str(len(content) + len(footer)))
+        req.write(content + footer)
         return(apache.OK)
+
+    # Add templating
+    if not config['gitblog.template_path'] == '':
+        try:
+            template = git_obj.tree[config['gitblog.template_path'] + '/site.tpl'].data_stream.read()
+            content = Template(template).safe_substitute(dict(content = content, footer = footer))
+        except:
+            content = content + footer
+    content = content.encode('utf-8')
 
     # Return html
     req.headers_out.add('Content-Type', 'text/html; charset=UTF-8')
     req.headers_out.add('Content-Length', str(len(content)))
-    req.write(content.encode('utf-8'))
+    req.write(content)
     return(apache.OK)
 
 # vim: set syntax=python tabstop=4 expandtab:
