@@ -77,6 +77,8 @@ def handler(req):
      'gitblog.max_age_blob': '1800',
      'gitblog.max_age_tree': '600',
      'gitblog.denied_path': 'private,templates',
+     'gitblog.hidden_path': 'private,templates,robots.txt',
+     'gitblog.direct_path': 'robots.txt',
      'gitblog.redirect_code': 'HTTP_MOVED_PERMANENTLY',
     }
 
@@ -94,7 +96,9 @@ def handler(req):
             config['gitblog.' + c] = False
 
     for c in ['markdown2_extras',
-              'denied_path']:
+              'denied_path',
+              'hidden_path',
+              'direct_path']:
         config['gitblog.' + c] = config['gitblog.' + c].split(',')
 
     for c in ['max_age_blob',
@@ -180,7 +184,7 @@ def handler(req):
 
         # Check if resource should NOT be delivered
         for p in config['gitblog.denied_path']:
-            if p.strip('/') == requested_path[0:len(p)+1]:
+            if p.strip('/') == '/'.join(requested_path[0:len(p)]):
                 return(apache.HTTP_FORBIDDEN)
 
         # Read blob object's content
@@ -193,6 +197,14 @@ def handler(req):
                 req.write(requested_object.data_stream.read())
                 return(apache.OK)
 
+            # Check for direct delivery paths
+            content = ''
+            for p in config['gitblog.direct_path']:
+                if p.strip('/') == '/'.join(requested_path[0:len(p)]):
+                    req.content_type = requested_object.type
+                    req.write(requested_object.data_stream.read())
+                    return(apache.OK)
+
             # Get text blob content
             content = requested_object.data_stream.read()
             content = content.decode('utf-8')
@@ -203,11 +215,27 @@ def handler(req):
 
             content = []
             for e in requested_object.trees:
-                content += [ str('* [/%s/](/%s/)' % (e.path, e.path)) ]
+                hidden = False
+                for p in config['gitblog.hidden_path']:
+                    if p.strip('/') == e.path[0:len(p)]:
+                        hidden = True
+                        break
+                if hidden == False:
+                    content += [ str('* [/%s/](/%s/)' % (e.path, e.path)) ]
             for e in requested_object.blobs:
-                content += [ str('* [/%s](/%s)' % (e.path, e.path)) ]
+                hidden = False
+                for p in config['gitblog.hidden_path']:
+                    if p.strip('/') == e.path[0:len(p)]:
+                        hidden = True
+                        break
+                if hidden == False:
+                    content += [ str('* [/%s](/%s)' % (e.path, e.path)) ]
             content.sort()
-            content = '# Directory Tree\n' + '\n'.join(content)
+
+            if config['gitblog.template_path'] == '':
+                content = '# Directory Tree\n' + '\n'.join(content)
+            else:
+                content = '\n'.join(content)
         else:
             return(apache.HTTP_UNSUPPORTED_MEDIA_TYPE)
     except:
@@ -254,11 +282,16 @@ def handler(req):
     # Add templating
     if not config['gitblog.template_path'] == '':
         try:
-            template = git_obj.tree[config['gitblog.template_path'] + '/site.tpl'].data_stream.read()
+            template_file = 'site.tpl'
+            if requested_object.type == 'tree':
+                template_file = 'directory.tpl'
+            if len(requested_path) == 0:
+                template_file = 'home.tpl'
+
+            template = git_obj.tree[config['gitblog.template_path'] + '/' + template_file].data_stream.read()
             content = Template(template).safe_substitute(dict(content = content, footer = footer))
         except:
             content = content + footer
-    content = content.encode('utf-8')
 
     # Return html
     req.headers_out.add('Content-Type', 'text/html; charset=UTF-8')
