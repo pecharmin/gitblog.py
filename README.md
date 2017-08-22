@@ -49,6 +49,20 @@ Desktop --> Local Repo --> Server Bare Repo -------´
 
   `/blog/2?ref=preview`
 
+* Filesystem symlink generates HTTP redirects
+
+  * Internal link: IMPRESSUM -> COPYRIGHT
+
+    ```
+    ln -s COPYRIGHT IMPRESSUM
+    ```
+
+  * External link: github -> https://github.com/pecharmin/gitblog.py
+
+    ```
+    ln -s https://github.com/pecharmin/gitblog.py github
+    ```
+
 ## Setup
 Whould you like to setup gitblog for your site?
 See [INSTALL](/INSTALL.md)
