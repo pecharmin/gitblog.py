@@ -165,19 +165,15 @@ def handler(req):
         # Resolve symlink
         while requested_object.type == 'blob' and requested_object.mode == requested_object.link_mode:
             try:
-                link_requested_path = normpath('/'.join(requested_path[:-1]) + '/' + \
-                                      requested_object.data_stream.read().decode('utf-8'))
-                requested_path = link_requested_path.strip('/').split('/')
-                requested_path = list(filter(None, requested_path))
+                link_target = requested_object.data_stream.read().decode('utf-8')
 
-                redirect_target = '/'.join(requested_path)
                 # TODO: Moved protocol values for verfication
                 #       to program parameters
-                if not redirect_target[0:7] == 'http://' and \
-                   not redirect_target[0:8] == 'https://':
-                    redirect_target = '/' + redirect_target
-
-                req.headers_out.add('Location', redirect_target)
+                if link_target[0:7] == 'http://' or \
+                   link_target[0:8] == 'https://':
+                    req.headers_out.add('Location', link_target)
+                else:
+                    req.headers_out.add('Location', '/' + link_target)
                 return(getattr(apache, config['gitblog.redirect_code']))
             except:
                 return(apache.HTTP_NOT_FOUND)
